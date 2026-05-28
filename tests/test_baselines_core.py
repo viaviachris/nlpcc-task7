@@ -80,6 +80,18 @@ class RetrievalPresetTest(unittest.TestCase):
         self.assertTrue(hparams["load_best_model_at_end"])
         self.assertEqual(hparams["metric_for_best_model"], "eval_elsst-val_cosine_ndcg@10")
 
+    def test_fast_stable_preset_trades_speed_for_quality(self):
+        hparams = retrieval_hparams_for_preset("fast_stable")
+
+        self.assertEqual(hparams["max_seq_length"], 1536)
+        self.assertEqual(hparams["num_train_epochs"], 2)
+        self.assertEqual(hparams["per_device_train_batch_size"], 4)
+        self.assertEqual(hparams["gradient_accumulation_steps"], 8)
+        self.assertEqual(hparams["save_steps"], 1500)
+        self.assertEqual(hparams["eval_steps"], 1500)
+        self.assertTrue(hparams["load_best_model_at_end"])
+        self.assertEqual(hparams["metric_for_best_model"], "eval_elsst-val_cosine_ndcg@10")
+
 
 class RetrievalCheckpointSelectionTest(unittest.TestCase):
     def test_prefers_explicit_best_model_checkpoint(self):

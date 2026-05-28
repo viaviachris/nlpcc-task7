@@ -15,6 +15,8 @@ from elsst_baselines.retrieval.dataset import (
 )
 from elsst_baselines.retrieval.evaluate import evaluate_retrieval
 from elsst_baselines.retrieval.modeling import (
+    _is_peft_adapter_dir,
+    _is_sentence_transformer_checkpoint,
     load_retrieval_inference_model,
     load_retrieval_train_bundle,
     save_retrieval_artifacts,
@@ -73,7 +75,7 @@ def build_training_arguments(training_args_cls, output_dir, hparams):
         "gradient_checkpointing": hparams["gradient_checkpointing"],
         "remove_unused_columns": False,
         "weight_decay": hparams.get("weight_decay"),
-        "warmup_ratio": hparams.get("warmup_ratio"),
+        "warmup_steps": hparams.get("warmup_steps"),
         "lr_scheduler_type": hparams.get("lr_scheduler_type"),
         "load_best_model_at_end": hparams.get("load_best_model_at_end"),
         "metric_for_best_model": hparams.get("metric_for_best_model"),
@@ -88,7 +90,11 @@ def build_training_arguments(training_args_cls, output_dir, hparams):
         candidate_kwargs[strategy_key] = "steps"
         candidate_kwargs["eval_steps"] = hparams["eval_steps"]
 
-    filtered_kwargs = filter_supported_kwargs(training_args_cls, candidate_kwargs)
+    filtered_kwargs = {
+        key: value
+        for key, value in filter_supported_kwargs(training_args_cls, candidate_kwargs).items()
+        if value is not None
+    }
     return training_args_cls(**filtered_kwargs)
 
 
@@ -140,15 +146,18 @@ def select_best_checkpoint(output_dir, metric_name, greater_is_better=True):
 def train_retrieval(dataset_root, output_dir, model_name, preset="auto", max_train_samples=None, max_eval_samples=None, max_steps=None, merge_adapter=False, resume_from_checkpoint=None):
     from datasets import Dataset
     from sentence_transformers import SentenceTransformerTrainer, SentenceTransformerTrainingArguments
-    from sentence_transformers import losses
-    from sentence_transformers.evaluation import InformationRetrievalEvaluator
-    from sentence_transformers.training_args import BatchSamplers
+    from sentence_transformers.sentence_transformer import losses
+    from sentence_transformers.sentence_transformer.evaluation import InformationRetrievalEvaluator
+    from sentence_transformers.sentence_transformer.training_args import BatchSamplers
 
     dataset_root = Path(dataset_root)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "base_model_name.txt").write_text(str(model_name) + "\n", encoding="utf-8")
 
     hparams = retrieval_hparams_for_preset(preset)
+    prompt_style = hparams.get("prompt_style", "baseline")
+    negatives_per_positive = hparams.get("negatives_per_positive")
     if max_steps is not None:
         hparams["max_steps"] = max_steps
         if "save_steps" in hparams:
@@ -160,7 +169,12 @@ def train_retrieval(dataset_root, output_dir, model_name, preset="auto", max_tra
     concept_pool = load_concept_pool(dataset_root / "concept_pool.jsonl")
     train_rows = load_track_rows(dataset_root / "train.jsonl")
     val_rows = load_track_rows(dataset_root / "val.jsonl", max_rows=max_eval_samples)
-    triplets = build_retrieval_triplets(train_rows, concept_pool)
+    triplets = build_retrieval_triplets(
+        train_rows,
+        concept_pool,
+        prompt_style=prompt_style,
+        negatives_per_positive=negatives_per_positive,
+    )
     if max_train_samples is not None:
         triplets = triplets[:max_train_samples]
 
@@ -178,7 +192,11 @@ def train_retrieval(dataset_root, output_dir, model_name, preset="auto", max_tra
             for row in triplets
         ]
     )
-    queries, corpus, relevant_docs = build_ir_evaluation_payload(val_rows, concept_pool)
+    queries, corpus, relevant_docs = build_ir_evaluation_payload(
+        val_rows,
+        concept_pool,
+        prompt_style=prompt_style,
+    )
     evaluator = InformationRetrievalEvaluator(
         queries=queries,
         corpus=corpus,
@@ -225,11 +243,17 @@ def train_retrieval(dataset_root, output_dir, model_name, preset="auto", max_tra
         greater_is_better=export_greater_is_better,
     )
     if best_checkpoint:
-        export_model = load_retrieval_inference_model(
-            model_name=model_name,
-            max_seq_length=hparams["max_seq_length"],
-            adapter_dir=best_checkpoint,
-        )
+        if _is_sentence_transformer_checkpoint(best_checkpoint):
+            export_model = load_retrieval_inference_model(
+                model_name=best_checkpoint,
+                max_seq_length=hparams["max_seq_length"],
+            )
+        elif _is_peft_adapter_dir(best_checkpoint):
+            export_model = load_retrieval_inference_model(
+                model_name=model_name,
+                max_seq_length=hparams["max_seq_length"],
+                adapter_dir=best_checkpoint,
+            )
 
     save_retrieval_artifacts(
         model=export_model,
@@ -276,10 +300,13 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     if args.dry_run:
+        hparams = retrieval_hparams_for_preset(args.preset)
         summary = retrieval_dataset_summary(
             args.dataset_root,
             max_train_samples=args.max_train_samples,
             max_eval_samples=args.max_eval_samples,
+            prompt_style=hparams.get("prompt_style", "baseline"),
+            negatives_per_positive=hparams.get("negatives_per_positive"),
         )
         print(dry_run_summary("retrieval-train", args.preset, summary))
         return 0

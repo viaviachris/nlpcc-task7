@@ -29,6 +29,9 @@ def infer_retrieval(query_file, concept_pool_path, output_path, model_name, pres
     output_path = Path(output_path)
 
     hparams = retrieval_hparams_for_preset(preset)
+    prompt_style = hparams.get("prompt_style", "baseline")
+    corpus_batch_size = hparams.get("corpus_batch_size", 16)
+    query_batch_size = hparams.get("query_batch_size", 16)
     concept_pool = load_concept_pool(concept_pool_path)
     rows = read_jsonl(query_file)
     if max_query_samples is not None:
@@ -39,8 +42,23 @@ def infer_retrieval(query_file, concept_pool_path, output_path, model_name, pres
         max_seq_length=hparams["max_seq_length"],
         adapter_dir=adapter_dir,
     )
-    queries = {row["id"]: format_query(row["text"]) for row in rows}
-    rankings = rank_concepts(model, queries, concept_pool, top_k=top_k)
+    queries = {
+        row["id"]: format_query(
+            row["text"],
+            document_type=row.get("document_type"),
+            prompt_style=prompt_style,
+        )
+        for row in rows
+    }
+    rankings = rank_concepts(
+        model,
+        queries,
+        concept_pool,
+        top_k=top_k,
+        prompt_style=prompt_style,
+        corpus_batch_size=corpus_batch_size,
+        query_batch_size=query_batch_size,
+    )
     write_jsonl(
         output_path,
         [{"id": row_id, "ranked_ids": ranked_ids} for row_id, ranked_ids in rankings.items()],

@@ -54,6 +54,8 @@ def resolve_preset(explicit_preset="auto"):
         return "24g"
     if memory_mb >= 46_000:
         return "48g"
+    if memory_mb >= 22_000:
+        return "3090"
     return "24g"
 
 
@@ -69,7 +71,7 @@ def retrieval_hparams_for_preset(preset):
             "gradient_accumulation_steps": 16,
             "gradient_checkpointing": True,
             "weight_decay": 0.01,
-            "warmup_ratio": 0.05,
+            "warmup_steps": 0.05,
             "lr_scheduler_type": "cosine",
             "save_steps": 1000,
             "eval_steps": 1000,
@@ -81,14 +83,191 @@ def retrieval_hparams_for_preset(preset):
             "logging_steps": 25,
         }
 
+    if resolved == "fast_stable":
+        return {
+            "max_seq_length": 1536,
+            "num_train_epochs": 2,
+            "learning_rate": 8e-5,
+            "per_device_train_batch_size": 4,
+            "per_device_eval_batch_size": 4,
+            "gradient_accumulation_steps": 8,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 1500,
+            "eval_steps": 1500,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+        }
+
+    if resolved == "3090":
+        return {
+            "max_seq_length": 1536,
+            "num_train_epochs": 2,
+            "learning_rate": 8e-5,
+            "per_device_train_batch_size": 32,
+            "per_device_eval_batch_size": 64,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2500,
+            "eval_steps": 2500,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+        }
+
+    if resolved == "3090_max":
+        return {
+            "max_seq_length": 1536,
+            "num_train_epochs": 2,
+            "learning_rate": 8e-5,
+            "per_device_train_batch_size": 64,
+            "per_device_eval_batch_size": 128,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2500,
+            "eval_steps": 2500,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+        }
+
+    if resolved == "qwen3_embedding_v1":
+        return {
+            "max_seq_length": 1536,
+            "num_train_epochs": 2,
+            "learning_rate": 8e-5,
+            "per_device_train_batch_size": 64,
+            "per_device_eval_batch_size": 128,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2500,
+            "eval_steps": 2500,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+            "prompt_style": "qwen3_embedding_v1",
+            "negatives_per_positive": None,
+            "corpus_batch_size": 64,
+            "query_batch_size": 128,
+        }
+
+    if resolved == "e5_3090":
+        return {
+            "max_seq_length": 512,
+            "num_train_epochs": 2,
+            "learning_rate": 1e-4,
+            "per_device_train_batch_size": 96,
+            "per_device_eval_batch_size": 192,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2500,
+            "eval_steps": 2500,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+        }
+
+    if resolved == "e5_base_v1":
+        return {
+            "max_seq_length": 512,
+            "num_train_epochs": 3,
+            "learning_rate": 7e-5,
+            "per_device_train_batch_size": 48,
+            "per_device_eval_batch_size": 96,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2000,
+            "eval_steps": 2000,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+            "prompt_style": "retrieval_v1",
+            "negatives_per_positive": 8,
+            "corpus_batch_size": 64,
+            "query_batch_size": 128,
+        }
+
+    if resolved == "e5_base_v1_1":
+        return {
+            "max_seq_length": 512,
+            "num_train_epochs": 2,
+            "learning_rate": 5e-5,
+            "per_device_train_batch_size": 48,
+            "per_device_eval_batch_size": 96,
+            "gradient_accumulation_steps": 1,
+            "gradient_checkpointing": True,
+            "weight_decay": 0.01,
+            "warmup_steps": 0.05,
+            "lr_scheduler_type": "cosine",
+            "save_steps": 2000,
+            "eval_steps": 2000,
+            "save_total_limit": 3,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+            "greater_is_better": True,
+            "seed": 42,
+            "logging_steps": 25,
+            "prompt_style": "baseline",
+            "negatives_per_positive": None,
+            "corpus_batch_size": 64,
+            "query_batch_size": 128,
+        }
+
     defaults = {
         "max_seq_length": 1536,
-        "num_train_epochs": 1,
-        "learning_rate": 1e-4,
+        "num_train_epochs": 2,
+        "learning_rate": 8e-5,
+        "per_device_train_batch_size": 4,
+        "per_device_eval_batch_size": 4,
         "gradient_accumulation_steps": 8,
         "gradient_checkpointing": True,
-        "per_device_train_batch_size": 4 if resolved == "48g" else 2,
-        "per_device_eval_batch_size": 4 if resolved == "48g" else 2,
+        "weight_decay": 0.01,
+        "warmup_steps": 0.05,
+        "lr_scheduler_type": "cosine",
+        "save_steps": 1500,
+        "eval_steps": 1500,
+        "save_total_limit": 3,
+        "load_best_model_at_end": True,
+        "metric_for_best_model": "eval_elsst-val_cosine_ndcg@10",
+        "greater_is_better": True,
+        "seed": 42,
+        "logging_steps": 25,
     }
     if resolved == "smoke":
         defaults.update(

@@ -8,6 +8,8 @@ from elsst_baselines.common.gpu import dry_run_summary, retrieval_hparams_for_pr
 from elsst_baselines.common.jsonl import read_jsonl, write_json, write_jsonl
 from elsst_baselines.retrieval.dataset import (
     build_ir_evaluation_payload,
+    format_query,
+    format_concept,
     load_concept_pool,
     load_track_rows,
     retrieval_dataset_summary,
@@ -37,24 +39,27 @@ def ndcg_at_k(ranked_ids, relevant_ids, k):
     return float(dcg / idcg) if idcg else 0.0
 
 
-def rank_concepts(model, query_rows, concept_pool, top_k=100):
+def rank_concepts(model, query_rows, concept_pool, top_k=100, prompt_style="baseline", corpus_batch_size=16, query_batch_size=16):
     concept_ids = list(concept_pool.keys())
     corpus_texts = [
-        f"Concept: {concept_pool[concept_id]['term']}\nDefinition: {concept_pool[concept_id]['definition']}"
+        format_concept(
+            {"term": concept_pool[concept_id]["term"], "definition": concept_pool[concept_id]["definition"]},
+            prompt_style=prompt_style,
+        )
         for concept_id in concept_ids
     ]
     query_texts = [query_rows[row_id] for row_id in query_rows]
 
     corpus_embeddings = model.encode(
         corpus_texts,
-        batch_size=16,
+        batch_size=corpus_batch_size,
         show_progress_bar=False,
         normalize_embeddings=True,
         convert_to_numpy=True,
     )
     query_embeddings = model.encode(
         query_texts,
-        batch_size=16,
+        batch_size=query_batch_size,
         show_progress_bar=False,
         normalize_embeddings=True,
         convert_to_numpy=True,
@@ -93,6 +98,9 @@ def evaluate_retrieval(dataset_root, output_dir, model_name, preset="auto", adap
     output_dir.mkdir(parents=True, exist_ok=True)
 
     hparams = retrieval_hparams_for_preset(preset)
+    prompt_style = hparams.get("prompt_style", "baseline")
+    corpus_batch_size = hparams.get("corpus_batch_size", 16)
+    query_batch_size = hparams.get("query_batch_size", 16)
     concept_pool = load_concept_pool(dataset_root / "concept_pool.jsonl")
     val_rows = load_track_rows(dataset_root / "val.jsonl", max_rows=max_eval_samples)
     test_rows = load_track_rows(dataset_root / "test_input.jsonl", max_rows=max_eval_samples)
@@ -103,11 +111,38 @@ def evaluate_retrieval(dataset_root, output_dir, model_name, preset="auto", adap
         adapter_dir=adapter_dir,
     )
 
-    val_queries, _, relevant_docs = build_ir_evaluation_payload(val_rows, concept_pool)
-    test_queries = {row["id"]: f"Instruct: Given a long social-science passage, retrieve the most relevant ELSST concepts.\nQuery: {row['text']}" for row in test_rows}
+    val_queries, _, relevant_docs = build_ir_evaluation_payload(
+        val_rows,
+        concept_pool,
+        prompt_style=prompt_style,
+    )
+    test_queries = {
+        row["id"]: format_query(
+            row["text"],
+            document_type=row.get("document_type"),
+            prompt_style=prompt_style,
+        )
+        for row in test_rows
+    }
 
-    val_rankings = rank_concepts(model, val_queries, concept_pool, top_k=top_k)
-    test_rankings = rank_concepts(model, test_queries, concept_pool, top_k=top_k)
+    val_rankings = rank_concepts(
+        model,
+        val_queries,
+        concept_pool,
+        top_k=top_k,
+        prompt_style=prompt_style,
+        corpus_batch_size=corpus_batch_size,
+        query_batch_size=query_batch_size,
+    )
+    test_rankings = rank_concepts(
+        model,
+        test_queries,
+        concept_pool,
+        top_k=top_k,
+        prompt_style=prompt_style,
+        corpus_batch_size=corpus_batch_size,
+        query_batch_size=query_batch_size,
+    )
     metrics = compute_retrieval_metrics(val_rankings, relevant_docs)
 
     write_jsonl(
@@ -137,9 +172,12 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     if args.dry_run:
+        hparams = retrieval_hparams_for_preset(args.preset)
         summary = retrieval_dataset_summary(
             args.dataset_root,
             max_eval_samples=args.max_eval_samples,
+            prompt_style=hparams.get("prompt_style", "baseline"),
+            negatives_per_positive=hparams.get("negatives_per_positive"),
         )
         print(dry_run_summary("retrieval-evaluate", args.preset, summary))
         return 0
