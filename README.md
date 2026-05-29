@@ -154,7 +154,7 @@ score(concept) += weight_i / (rrf_k + rank_i)
 
 在“长文本到受控词表”的映射任务中，生成式 Qwen3 凭借强大的复杂概念建模能力显著优于传统 E5 模型；同时，BM25 的字面硬匹配虽单路表现极差，但能有效补充语义模型遗漏的词面线索，使三路融合达到最优；然而，直接套用通用重排模型（如 bge-reranker）会严重破坏排序分布导致指标暴跌（NDCG@10 从 0.59 降至 0.10），这证明该任务必须依赖领域专属的重排微调。
 
-## 后续努力方向
+## 后续实验
 
 1. 训练 ELSST 专用 reranker：使用 `train.jsonl` 中的 positive concepts 和 hard negatives 构造 `(query, concept)` 二分类或 pairwise ranking 数据，对 `bge-reranker-base`、`Qwen3-Reranker-0.6B` 等模型进行任务内微调。
 2. Hard Negative Mining：用当前最佳 Qwen3+E5+BM25 系统在训练集上检索 top100，将高排名错误概念作为新的 hard negatives，重新微调 embedding 或 reranker。
