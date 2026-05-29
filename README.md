@@ -138,7 +138,7 @@ score(concept) += weight_i / (rrf_k + rank_i)
 | 对比对象 | 基线 Recall@5 | 最佳系统 Recall@5 |
 | :--- | :---: | :---: |
 | Qwen3-0.6B Embedding LoRA 微调基线 | 0.4490 | 0.5744 |
-| e5-small LoRA 微调基线 | 0.3420 | 0.5744 |
+| e5-small LoRA 微调基线 | 0.3420 | 0.4509 |
 
 #### 2. E5 单模型与最佳整体系统全指标对比
 相较于最佳修复版 E5 单模型，最佳整体系统提升如下：
