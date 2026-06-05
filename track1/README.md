@@ -119,3 +119,40 @@ The reference retrieval code lives in [ZeqiangWangAI/elsst-benchmark-baselines](
 ## Citation
 
 If you use Track1, cite this benchmark release together with the companion Track2 card so the full task definition is preserved.
+# nlpcc-task7
+# Track1 检索实验结果总结
+## 任务与指标
+
+Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 ELSST 概念池中检索并排序相关概念。本实验主要关注以下指标：
+
+- `MRR`：平均倒数排名，衡量第一个相关结果出现得是否靠前。
+- `NDCG@10`：Top 10 排序质量，也是训练阶段主要使用的模型选择指标。
+- `Recall@10`：Top 10 中召回相关概念的能力。
+- `Recall@5`：更严格的前排召回能力。
+
+## 基线结果
+
+本实验先记录了两个 Track1 LoRA 微调基线：
+
+| 模型 | 方法 | Recall@5 |
+|---|---|---:|
+| Qwen3-0.6B Embedding | LoRA 微调 | 0.4490 |
+| e5-small | LoRA 微调 | 0.3420 |
+
+这两个结果作为早期基线，用于衡量后续 checkpoint 选择、评估修复、融合与检索增强方法带来的提升。
+
+## 实验方法演进
+
+### 1. 单模型 Best 对比
+
+第一阶段先比较不同 embedding 底座在单模型检索下的最佳结果。为了避免把同一训练方案下的不同 checkpoint 误写成不同方法，主表中只保留每个模型系列的最佳结果。
+
+| 模型 | 方法说明 | MRR | NDCG@10 | Recall@10 | Recall@5 |
+|---|---|---:|---:|---:|---:|
+| E5-small  | Encoder-only embedding，修复评估后选择最佳 checkpoint | 0.5768 | 0.4357 | 0.5074 | 0.4100 |
+| E5-base  | 更大规模的 E5 encoder-only embedding，选择最佳 checkpoint | 0.5590 | 0.4273 | 0.5067 | 0.4300 |
+| Qwen3-0.6B  | Qwen3-Embedding-0.6B LoRA 微调，选择最佳 checkpoint | 0.6959 | 0.5769 | 0.6612 | 0.5572 |
+| Qwen3-8B  | Qwen3-Embedding-0.6B LoRA 微调，选择最佳 checkpoint | 0.8857 | 0.7760 | 0.8330 |  0.7251 |
+
+
+
