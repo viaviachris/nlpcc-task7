@@ -215,4 +215,6 @@ v2 是更强的检索方案。
 1. 更适合隐式概念匹配的 prompt
 2. 来自 v1.1 模型挖掘出的更难负样本
 
-因此，v1 可以看作基础版本，v2 是在此基础上的增强版，并且效果更好。v1.1 label-mined 版本延续了同一条 dense label retrieval 路线：用 label embedding 表示 ELSST concept，并通过 mined hard negatives + supervised contrastive learning 微调 bi-encoder。它的 `checkpoint-1000` 已经用官方 scorer 复算，验证了该方法在可提交评估口径下的表现。
+还有一版本在跑：1.数据基础上加入了 curriculum hard negatives，也就是负例按 easy / medium / hard 分层组织，让模型逐步学会区分更难的相似概念。
+加入 label prototype 辅助目标：额外把概念的 label / definition / semantic view 做成 prototype embedding，训练时让 query 不仅靠近正例 concept，也靠近对应 label prototype。
+评估/提交阶段支持 top-k rerank：评估时可以对 top-50 做轻量 rerank
