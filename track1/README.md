@@ -186,47 +186,31 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 - 学习率为 `1.5e-5`
 - hard negatives 加入了模型挖掘出的更难样本
 
-### v11 label-mined / Qwen3-Embedding-8B checkpoint-1000
+### v11 label-mined / checkpoint-1000
 
 - 运行目录：`runs/track1_qwen3_embedding_8b_v11_label_mined_b16_acc2_gpu7_20260603_124943`
 - 基座模型：`Qwen3-Embedding-8B`
 - 使用 `track1_v11_label_mined` 数据集
-- 使用 `qwen3_embedding_v2` prompt 风格，query 中显式加入 `document_type`
+- 采用 `qwen3_embedding_v2` prompt 风格，并在 query 中显式加入 `document_type`
 - 将 ELSST concept 的 `term + definition` 构造成 label text，再编码为 label embedding
-- 使用 LoRA 微调，而不是全参微调
-- LoRA 目标模块包括 `q_proj`、`k_proj`、`v_proj`、`o_proj`、`gate_proj`、`up_proj`、`down_proj`
-- 训练目标为 `MultipleNegativesRankingLoss`
-- 每个 positive 使用 mined hard negatives 构造监督式对比训练样本
-- 训练内部 evaluator 选出的 best checkpoint 是 `checkpoint-1000`
-- 评估时需要从 `checkpoint-1000` 正确恢复未合并 LoRA 权重，再生成 `val_retrieval_ranking.jsonl`
-- 最终分数使用官方 `track1.score_submission` 口径复算
+- 使用 LoRA 微调，目标模块包括 `q_proj`、`k_proj`、`v_proj`、`o_proj`、`gate_proj`、`up_proj`、`down_proj`
+- 使用 `MultipleNegativesRankingLoss` 做监督式对比学习
+- 每个 positive 使用 mined hard negatives 构造训练样本
+- 训练内部 evaluator 选出的 best checkpoint 为 `checkpoint-1000`
+- 评估时从 `checkpoint-1000` 正确恢复未合并 LoRA 权重，生成 `val_retrieval_ranking.jsonl`
+- 指标使用官方 `track1.score_submission` 口径复算
 
 ## 指标对比
 
 最终 checkpoint 的验证集结果如下：
 
-### 总览
+| 版本 | 评估口径 | checkpoint | Recall@5 | Recall@10 | NDCG@10 | MRR |
+|---|---|---|---:|---:|---:|---:|
+| v1 | SentenceTransformers evaluator | final checkpoint | 0.7250 | 0.8340 | 0.7788 | 0.8905 |
+| v2 | SentenceTransformers evaluator | final checkpoint | 0.7453 | 0.8473 | 0.8051 | 0.9247 |
+| v11 label-mined / Qwen3-Embedding-8B | 官方 `track1.score_submission` | `checkpoint-1000` | 0.7251 | 0.8331 | 0.7760 | 0.8858 |
 
-| 版本 | 评估口径 | checkpoint | NDCG@10 | MRR | Recall@5 | Recall@10 | Acc@1 | MAP@100 |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| v1 | SentenceTransformers evaluator | final checkpoint | 0.7788 | 0.8905 | - | - | 0.8188 | 0.6984 |
-| v2 | SentenceTransformers evaluator | final checkpoint | 0.8051 | 0.9247 | - | - | 0.8730 | 0.7279 |
-| v11 label-mined / Qwen3-Embedding-8B | 官方 `track1.score_submission` | `checkpoint-1000` | 0.7760 | 0.8858 | 0.7251 | 0.8331 | - | - |
-
-### SentenceTransformers 内部 evaluator
-
-| 版本 | Acc@1 | Acc@3 | Acc@5 | NDCG@10 | MRR@10 | MAP@100 |
-|---|---:|---:|---:|---:|---:|---:|
-| v1 | 0.8188 | 0.9603 | 0.9841 | 0.7788 | 0.8905 | 0.6984 |
-| v2 | 0.8730 | 0.9775 | 0.9960 | 0.8051 | 0.9247 | 0.7279 |
-
-### 官方 Track1 scorer
-
-下表使用官方 `track1.score_submission` 口径。该口径要求先生成 `val_retrieval_ranking.jsonl`，再对每个 query 的前 100 个 `ranked_ids` 计算指标；主指标为 `NDCG@10`。
-
-| 版本 | checkpoint | MRR | NDCG@10 | Recall@5 | Recall@10 | 备注 |
-|---|---|---:|---:|---:|---:|---|
-| v11 label-mined / Qwen3-Embedding-8B | `checkpoint-1000` | 0.8858 | 0.7760 | 0.7251 | 0.8331 | 正确恢复未合并 LoRA checkpoint 后生成 ranking，并用官方 scorer 复算 |
+> 注意：v1/v2 行来自 SentenceTransformers 内部 evaluator；v11 行来自官方 `track1.score_submission`，需要先生成 `val_retrieval_ranking.jsonl`，再对前 100 个 `ranked_ids` 计算指标。提交前应以官方 scorer 的 `NDCG@10` 为准。
 
 ## 结论
 
@@ -237,6 +221,4 @@ v2 是更强的检索方案。
 1. 更适合隐式概念匹配的 prompt
 2. 来自 v1 模型挖掘出的更难负样本
 
-v11 label-mined / Qwen3-Embedding-8B 版本进一步确认了该路线的有效性：将 Track1 建模为 dense label retrieval，用 label embedding 表示 ELSST concept，并通过 hard-negative supervised contrastive learning 微调 bi-encoder。需要注意的是，SentenceTransformers 内部 evaluator 与官方 `track1.score_submission` 是两个不同入口；提交前应以后者生成的 `NDCG@10` 为准。
-
-
+因此，v1 可以看作基础版本，v2 是在此基础上的增强版，并且效果更好。v11 label-mined 版本延续了同一条 dense label retrieval 路线：用 label embedding 表示 ELSST concept，并通过 mined hard negatives + supervised contrastive learning 微调 bi-encoder。它的 `checkpoint-1000` 已经用官方 scorer 复算，验证了该方法在可提交评估口径下的表现。
