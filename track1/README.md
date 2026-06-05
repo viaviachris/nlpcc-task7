@@ -199,11 +199,11 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 
 最终 checkpoint 的验证集结果如下：
 
-| 版本 | 评估口径 | checkpoint | MRR | NDCG@10 | Recall@5 | Recall@10 |
-|---|---|---|---:|---:|---:|---:|
-| v1 | SentenceTransformers evaluator | final checkpoint | 0.8905 | 0.7788 | 0.7250 | 0.8340 |
-| v1.1 label-mined | 官方 `track1.score_submission` | `checkpoint-1000` | 0.8858 | 0.7760 | 0.7251 | 0.8331 |
-| v2 | SentenceTransformers evaluator | final checkpoint | 0.9247 | 0.8051 | 0.7453 | 0.8473 |
+| 版本 |  checkpoint | MRR | NDCG@10 | Recall@5 | Recall@10 |
+|---|---|---:|---:|---:|---:|
+| v1 | final checkpoint | 0.8905 | 0.7788 | 0.7250 | 0.8340 |
+| v1.1 label-mined |  `checkpoint-1000` | 0.8858 | 0.7760 | 0.7251 | 0.8331 |
+| v2 | final checkpoint | 0.9247 | 0.8051 | 0.7453 | 0.8473 |
 
 
 ## 总结
