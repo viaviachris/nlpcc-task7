@@ -182,7 +182,7 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 - 采用 `qwen3_embedding_v2` prompt 风格
 - query prompt 更强调隐式/显式语义支持
 - concept prompt 更强调概念匹配，而不只看字面重合
-- 学习率为 `1.5e-5`
+
 
 
 ### v2
