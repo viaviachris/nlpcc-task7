@@ -154,7 +154,7 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 | Qwen3-0.6B  | Qwen3-Embedding-0.6B LoRA 微调，选择最佳 checkpoint | 0.6959 | 0.5769 | 0.6612 | 0.5572 |
 | Qwen3-8B  | Qwen3-Embedding-8B LoRA 微调，选择最佳 checkpoint | 0.8857 | 0.7760 | 0.8330 |  0.7251 |
 
-# Qwen3-Embedding-8B v1 与 v2 对比
+# Qwen3-Embedding-8B 版本 对比
 
 这份说明对比了基于 Qwen3-Embedding-8B 的两个 Track1 密集检索版本。
 
@@ -178,22 +178,22 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 - 负样本来自数据集中已有的 hard negatives
 
 ### v1.1 label-mined
+- 使用由 v1 checkpoint 挖掘得到的新训练数据
+- 采用 `qwen3_embedding_v2` prompt 风格
+- query prompt 更强调隐式/显式语义支持
+- concept prompt 更强调概念匹配，而不只看字面重合
+- 学习率为 `1.5e-5`
 
-- 在 v1 的 hard-negative 检索训练基础上，引入 label-mined 训练数据
+
+### v2
+- hard negatives 加入了模型挖掘出的更难样本
+- 在 v1.1 的 hard-negative 检索训练基础上，引入 label-mined 训练数据
 - 采用 `qwen3_embedding_v2` prompt 风格，并在 query 中显式加入 `document_type`
 - 将 ELSST concept 的 `term + definition` 构造成 label text，再编码为 label embedding
 - 使用 LoRA 微调，目标模块包括 `q_proj`、`k_proj`、`v_proj`、`o_proj`、`gate_proj`、`up_proj`、`down_proj`
 - 使用 `MultipleNegativesRankingLoss` 做监督式对比学习
 - 每个 positive 使用 mined hard negatives 构造训练样本
 
-### v2
-
-- 使用由 v1 checkpoint 挖掘得到的新训练数据
-- 采用 `qwen3_embedding_v2` prompt 风格
-- query prompt 更强调隐式/显式语义支持
-- concept prompt 更强调概念匹配，而不只看字面重合
-- 学习率为 `1.5e-5`
-- hard negatives 加入了模型挖掘出的更难样本
 
 ## 指标对比
 
@@ -206,13 +206,13 @@ Track1 是隐式概念检索任务：给定查询或样例文本，从固定的 
 | v2 | SentenceTransformers evaluator | final checkpoint | 0.9247 | 0.8051 | 0.7453 | 0.8473 |
 
 
-## 结论
+## 总结
 
 v2 是更强的检索方案。
 
 它的提升主要来自两点：
 
 1. 更适合隐式概念匹配的 prompt
-2. 来自 v1 模型挖掘出的更难负样本
+2. 来自 v1.1 模型挖掘出的更难负样本
 
 因此，v1 可以看作基础版本，v2 是在此基础上的增强版，并且效果更好。v1.1 label-mined 版本延续了同一条 dense label retrieval 路线：用 label embedding 表示 ELSST concept，并通过 mined hard negatives + supervised contrastive learning 微调 bi-encoder。它的 `checkpoint-1000` 已经用官方 scorer 复算，验证了该方法在可提交评估口径下的表现。
