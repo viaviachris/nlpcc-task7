@@ -182,36 +182,45 @@ v2 是更强的检索方案。
 
 - `LLM query expansion v2`：对 query 追加 LLM 生成的 ELSST concept explanation，再用 v2 checkpoint 检索；当前只有 val-only 指标
 - `label text enhanced v5`：重建 concept text，加入 broader/narrower/related/keywords 等 label 上下文，再用 v2 checkpoint 检索
+- `label text enhanced v5 ablation`：围绕 concept text 增强强度做验证集消融，比较去掉 related labels、保留 broader/narrower、调整 keywords 与 narrower 数量后的效果
+- `prompt ensemble + label text enhanced v5 RRF`：将原 prompt ensemble ranking 与 label text enhanced v5 ranking 做 weighted RRF 融合，用于验证 concept 侧增强是否与 prompt ensemble 互补
 
 ## 指标对比
 
 主表按方法演进排序，不以日期命名。除 v1.1 为原 README 保留的官方 scorer 复算结果外，其余新增结果均来自对应输出目录的 `metrics.json`。
 
-| 版本 / 方法 | 评估口径 | checkpoint / 基座 | 来源目录 | MRR | NDCG@10 | Recall@5 | Recall@10 |
-|---|---|---|---|---:|---:|---:|---:|
-| v1 dense | Track1 验证集 ranking | `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v1_eval_ckpt2235` | 0.888264 | 0.776956 | 0.728153 | 0.833245 |
-| v1.1 label-mined | 官方 `track1.score_submission` | `checkpoint-1000` | 原 README 记录 | 0.885800 | 0.776000 | 0.725100 | 0.833100 |
-| v2 dense | Track1 验证集 ranking | `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_eval_ckpt2235` | 0.928444 | 0.813088 | 0.756504 | 0.857297 |
-| v3 dense | Track1 验证集 ranking | `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v3_eval_ckpt2235` | 0.911195 | 0.793051 | 0.732981 | 0.841799 |
-| v2 prompt v3 | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_prompt_qwen3_embedding_v3` | 0.925754 | 0.800034 | 0.740079 | 0.844158 |
-| v2 prompt v4 | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_prompt_qwen3_embedding_v4` | 0.924092 | 0.801513 | 0.741711 | 0.842659 |
-| v2 prompt v5 | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_prompt_qwen3_embedding_v5` | 0.924531 | 0.795586 | 0.740388 | 0.837743 |
-| v2/v3/v4/v5 prompt ensemble | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_prompt_ensemble_v2_v3_v4_v5_w5_1_1_1` | 0.929524 | 0.814456 | 0.754167 | 0.859061 |
-| prompt ensemble train-top100 | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_qwen3_embedding_8b_v2_prompt_ensemble_v2_v3_v4_v5_train_top100_w5_1_1_1` | 0.929636 | 0.813195 | 0.754167 | 0.856459 |
-| v2 rerank v4 top100 | Track1 验证集 ranking | v2 dense top100 + bge-reranker-base | `outputs/track1_qwen3_embedding_8b_v2_rerank_v4_top100` | 0.928360 | 0.812846 | 0.755996 | 0.856724 |
-| v2+v1 RRF | Track1 验证集 ranking | v2 + v1 | `outputs/track1_rrf_qwen3_8b_v2_v1_w5_1` | 0.926282 | 0.812241 | 0.755974 | 0.855930 |
-| v2+v1+e5+bm25 RRF | Track1 验证集 ranking | v2 + v1 + E5 + BM25 | `outputs/track1_rrf_qwen3_8b_v2_v1_e5_bm25_w5_1_02_002` | 0.926116 | 0.812450 | 0.758025 | 0.856085 |
-| pairwise reranker ensemble top100 | Track1 验证集 ranking | prompt ensemble top100 + bge-reranker-base | `outputs/track1_pairwise_reranker_ensemble_top100_w5_1_1_1` | 0.929626 | 0.813232 | 0.754167 | 0.856592 |
-| LLM query expansion v2 | Track1 验证集 ranking，val-only | v2 `checkpoint-2235` | `outputs/track1_llm_query_expansion_v2_val_only` | 0.918166 | 0.805194 | 0.750595 | 0.848765 |
-| label text enhanced v5 | Track1 验证集 ranking | v2 `checkpoint-2235` | `outputs/track1_label_text_enhanced_v5_qwen3_v2` | 0.932767 | 0.814471 | 0.756041 | 0.854475 |
+| 版本 / 方法 | checkpoint / 基座 | MRR | NDCG@10 | Recall@5 | Recall@10 |
+|---|---|---:|---:|---:|---:|
+| v1 dense | `checkpoint-2235` | 0.888264 | 0.776956 | 0.728153 | 0.833245 |
+| v1.1 label-mined | `checkpoint-1000` | 0.885800 | 0.776000 | 0.725100 | 0.833100 |
+| v2 dense | `checkpoint-2235` | 0.928444 | 0.813088 | 0.756504 | 0.857297 |
+| v3 dense | `checkpoint-2235` | 0.911195 | 0.793051 | 0.732981 | 0.841799 |
+| v2 prompt v3 | v2 `checkpoint-2235` | 0.925754 | 0.800034 | 0.740079 | 0.844158 |
+| v2 prompt v4 | v2 `checkpoint-2235` | 0.924092 | 0.801513 | 0.741711 | 0.842659 |
+| v2 prompt v5 | v2 `checkpoint-2235` | 0.924531 | 0.795586 | 0.740388 | 0.837743 |
+| v2/v3/v4/v5 prompt ensemble | v2 `checkpoint-2235` | 0.929524 | 0.814456 | 0.754167 | 0.859061 |
+| prompt ensemble train-top100 | v2 `checkpoint-2235` | 0.929636 | 0.813195 | 0.754167 | 0.856459 |
+| v2 rerank v4 top100 | v2 dense top100 + bge-reranker-base | 0.928360 | 0.812846 | 0.755996 | 0.856724 |
+| v2+v1 RRF | v2 + v1 | 0.926282 | 0.812241 | 0.755974 | 0.855930 |
+| v2+v1+e5+bm25 RRF | v2 + v1 + E5 + BM25 | 0.926116 | 0.812450 | 0.758025 | 0.856085 |
+| pairwise reranker ensemble top100 | prompt ensemble top100 + bge-reranker-base | 0.929626 | 0.813232 | 0.754167 | 0.856592 |
+| LLM query expansion v2 | v2 `checkpoint-2235` | 0.918166 | 0.805194 | 0.750595 | 0.848765 |
+| label text enhanced v5 | v2 `checkpoint-2235` | 0.932767 | 0.814471 | 0.756041 | 0.854475 |
+| label text v5 ablation: no related + kw10 | v2 `checkpoint-2235` | 0.932988 | 0.814964 | 0.756922 | 0.854806 |
+| label text v5 ablation: no related + kw0 | v2 `checkpoint-2235` | 0.921555 | 0.808190 | 0.754497 | 0.852315 |
+| label text v5 ablation: narrower3 + no related + kw6 | v2 `checkpoint-2235` | 0.930180 | 0.814068 | 0.758532 | 0.851675 |
+| label text v5 ablation: related2 + kw6 | v2 `checkpoint-2235` | 0.929298 | 0.812492 | 0.756834 | 0.850419 |
+| prompt ensemble + label text enhanced v5 RRF | prompt ensemble + label text v5, RRF `1 2` | 0.932675 | 0.816444 | 0.757275 | 0.857914 |
 
 ## 结论
 
 从方法演进看，v2 是 v1 之后最关键的提升节点：它用 v1 checkpoint 挖掘出的 hard negatives 和更适合隐式概念匹配的 `qwen3_embedding_v2` prompt，把 MRR 提升到 `0.928444`。
 
-v3 的第二轮 hard-negative mining 没有继续提升。单独 prompt variants 也没有超过 v2，但 v2/v3/v4/v5 的 prompt ensemble 带来了更高的 `NDCG@10` 和 `Recall@10`。当前 MRR 最高的是 `label text enhanced v5`，达到 `0.932767`；如果更看重 `Recall@10`，则 `v2/v3/v4/v5 prompt ensemble` 最高，为 `0.859061`。
+v3 的第二轮 hard-negative mining 没有继续提升。单独 prompt variants 也没有超过 v2，但 v2/v3/v4/v5 的 prompt ensemble 带来了更高的 `NDCG@10` 和 `Recall@10`。LLM query expansion 和 reranker 没有形成稳定收益，说明当前瓶颈更偏向 ELSST concept 侧的细粒度标签表达，而不是简单扩大 query 或后置重排。
 
-v1.1 label-mined 保留为早期 mined label retrieval 的关键中间版本：它证明了 label text + mined hard negatives + supervised contrastive learning 这条路线可行，后续 v2/v3 和 label text enhanced v5 都是在这条路线上继续改 prompt、改 hard negatives 或改 concept text 表达。
+label text enhancement 是目前最有效的新方向。原始 v5 已经提高 MRR；进一步消融表明 `related labels` 主要引入噪声，`no related + kw10` 是单独 label text 版本中最强的配置，MRR 达到 `0.932988`，NDCG@10 达到 `0.814964`。不过它的 Recall@10 仍低于 prompt ensemble，说明增强后的 concept text 更擅长把已召回的正确概念排到前面，但会牺牲一部分 top10 覆盖。
+
+当前 NDCG@10 最高的是 `prompt ensemble + label text enhanced v5 RRF`，达到 `0.816444`；当前 Recall@10 最高的仍是 `v2/v3/v4/v5 prompt ensemble`，为 `0.859061`。v1.1 label-mined 保留为早期 mined label retrieval 的关键中间版本：它证明了 label text + mined hard negatives + supervised contrastive learning 这条路线可行，后续 v2/v3 和 label text enhancement 都是在这条路线上继续改 prompt、改 hard negatives 或改 concept text 表达。
 
 
 
