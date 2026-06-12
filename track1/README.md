@@ -214,14 +214,12 @@ v2 是更强的检索方案。
 
 ## 结论
 
-从方法演进看，v2 是 v1 之后最关键的提升节点：它用 v1 checkpoint 挖掘出的 hard negatives 和更适合隐式概念匹配的 `qwen3_embedding_v2` prompt，把 MRR 提升到 `0.928444`。
-
-v3 的第二轮 hard-negative mining 没有继续提升。单独 prompt variants 也没有超过 v2，但 v2/v3/v4/v5 的 prompt ensemble 带来了更高的 `NDCG@10` 和 `Recall@10`。LLM query expansion 和 reranker 没有形成稳定收益，说明当前瓶颈更偏向 ELSST concept 侧的细粒度标签表达，而不是简单扩大 query 或后置重排。
+从方法演进看，v2 是 v1 之后最关键的提升节点：它用 v1 checkpoint 挖掘出的 hard negatives 和更适合隐式概念匹配的 `qwen3_embedding_v2` prompt，把 MRR 提升到 `0.928444`。v3 的第二轮 hard-negative mining 没有继续提升。单独 prompt variants 也没有超过 v2，但 v2/v3/v4/v5 的 prompt ensemble 带来了更高的 `NDCG@10` 和 `Recall@10`。LLM query expansion 和 reranker 没有形成稳定收益，说明当前瓶颈更偏向 ELSST concept 侧的细粒度标签表达，而不是简单扩大 query 或后置重排。
 
 label text enhancement 是目前最有效的新方向。原始 v5 已经提高 MRR；进一步消融表明 `related labels` 主要引入噪声，`no related + kw10` 是单独 label text 版本中最强的配置，MRR 达到 `0.932988`，NDCG@10 达到 `0.814964`。不过它的 Recall@10 仍低于 prompt ensemble，说明增强后的 concept text 更擅长把已召回的正确概念排到前面，但会牺牲一部分 top10 覆盖。
 
 当前 NDCG@10 最高的是 `prompt ensemble + label text enhanced v5 RRF`，达到 `0.816444`；当前 Recall@10 最高的仍是 `v2/v3/v4/v5 prompt ensemble`，为 `0.859061`。v1.1 label-mined 保留为早期 mined label retrieval 的关键中间版本：它证明了 label text + mined hard negatives + supervised contrastive learning 这条路线可行，后续 v2/v3 和 label text enhancement 都是在这条路线上继续改 prompt、改 hard negatives 或改 concept text 表达。
-
+现在已经进入 ELSST 细粒度标签边界瓶颈。模型大多数时候能找到相关语义区域，但很难稳定区分正确 concept、近义 concept、上位词、下位词、related concept 谁应该进 top10、谁应该排更前。
 
 
 
